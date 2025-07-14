@@ -317,14 +317,6 @@ const NotionBookingSystem = () => {
         <div className="p-4">
           {!showTimeSlots && !showBookingForm && (
             <>
-              {/* メインアクションボタン */}
-              <button 
-                className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-4 px-6 rounded-lg mb-6 font-bold text-lg shadow-lg transform active:scale-95 transition-transform"
-                disabled={isLoading}
-              >
-                {isLoading ? '読み込み中...' : settings.immediateButtonText}
-              </button>
-
               {/* 週選択 */}
               <div className="flex justify-between items-center mb-4 bg-white rounded-lg shadow-sm border p-3">
                 <button 
