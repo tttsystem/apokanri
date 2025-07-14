@@ -3,12 +3,11 @@ import React, { useState, useEffect } from 'react';
 const NotionBookingSystem = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [selectedStartTime, setSelectedStartTime] = useState('');
-  const [selectedEndTime, setSelectedEndTime] = useState('');
   const [bookingData, setBookingData] = useState({});
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [weekOffset, setWeekOffset] = useState(0);
+  const [showTimeSlots, setShowTimeSlots] = useState(false);
   
   // Notionからカレンダーデータを取得
   const [notionEvents, setNotionEvents] = useState([]);
@@ -16,11 +15,11 @@ const NotionBookingSystem = () => {
 
   // システム設定（コードで直接変更）
   const settings = {
-    immediateButtonText: '会議室Aを予約する',
-    startHour: 10,
-    endHour: 23,
-    systemTitle: '会議室A 予約システム',
-    description: '使用する時間帯を選択してご予約ください'
+    immediateButtonText: '今すぐ予約する',
+    startHour: 11,
+    endHour: 21,
+    systemTitle: '予約システム',
+    description: 'ご希望の日時を選択してください'
   };
 
   // 祝日リスト（2025年の日本の祝日）
@@ -32,9 +31,9 @@ const NotionBookingSystem = () => {
   ];
 
   // Notion API設定
-  const CALENDAR_DATABASE_ID = process.env.REACT_APP_NOTION_DATABASE_ID || '1f344ae2d2c780d5be3ffd5c8132f5f6';
+  const CALENDAR_DATABASE_ID = process.env.REACT_APP_NOTION_DATABASE_ID || '1fa44ae2d2c780a5b27dc7aae5bae1aa';
 
-  // 7日間の日付を生成
+  // 平日のみの週の日付を生成（土日を除外）
   const getCurrentWeekDates = () => {
     const today = new Date();
     const currentDay = today.getDay();
@@ -42,7 +41,7 @@ const NotionBookingSystem = () => {
     monday.setDate(today.getDate() - currentDay + 1 + (weekOffset * 7));
     
     const weekDates = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 5; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
       weekDates.push(date);
@@ -50,28 +49,24 @@ const NotionBookingSystem = () => {
     return weekDates;
   };
 
-  // 祝日かどうかをチェック（土日含む）
+  // 祝日かどうかをチェック
   const isHoliday = (date) => {
     const dateString = date.toISOString().split('T')[0];
-    const dayOfWeek = date.getDay();
-    return holidays2025.includes(dateString) || dayOfWeek === 0 || dayOfWeek === 6;
+    return holidays2025.includes(dateString);
   };
 
-  // 時間オプションを生成（30分刻み）
-  const generateTimeOptions = () => {
-    const times = [];
-    for (let hour = settings.startHour; hour <= settings.endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        if (hour === settings.endHour && minute > 0) break;
-        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        times.push(time);
-      }
+  // 時間スロットを生成（1時間ごと）
+  const generateTimeSlots = (startHour, endHour) => {
+    const slots = [];
+    for (let hour = startHour; hour < endHour; hour++) {
+      const time = `${hour.toString().padStart(2, '0')}:00`;
+      slots.push(time);
     }
-    return times;
+    return slots;
   };
 
   const weekDates = getCurrentWeekDates();
-  const timeOptions = generateTimeOptions();
+  const timeSlots = generateTimeSlots(settings.startHour, settings.endHour);
 
   // Notionからカレンダーイベントを取得
   const fetchNotionCalendar = async () => {
@@ -86,10 +81,10 @@ const NotionBookingSystem = () => {
         body: JSON.stringify({
           databaseId: CALENDAR_DATABASE_ID,
           filter: {
-            property: '日付',
+            property: '予定日',
             date: {
               on_or_after: weekDates[0].toISOString().split('T')[0],
-              on_or_before: weekDates[6].toISOString().split('T')[0]
+              on_or_before: weekDates[4].toISOString().split('T')[0]
             }
           }
         })
@@ -100,7 +95,6 @@ const NotionBookingSystem = () => {
       }
 
       const data = await response.json();
-      console.log('取得したNotionデータ:', data.results);
       setNotionEvents(data.results || []);
 
     } catch (error) {
@@ -122,19 +116,19 @@ const NotionBookingSystem = () => {
         body: JSON.stringify({
           parent: { database_id: CALENDAR_DATABASE_ID },
           properties: {
-            '予定名': {
+            '名前': {
               title: [
                 {
                   text: {
-                    content: `${bookingData.customerName} (${bookingData.startTime}-${bookingData.endTime})`
+                    content: bookingData.customerName
                   }
                 }
               ]
             },
-            '日付': {
+            '予定日': {
               date: {
-                start: `${bookingData.date}T${bookingData.startTime}:00+09:00`,
-                end: `${bookingData.date}T${bookingData.endTime}:00+09:00`
+                start: `${bookingData.date}T${bookingData.time}:00+09:00`,
+                end: `${bookingData.date}T${String(parseInt(bookingData.time.split(':')[0]) + 1).padStart(2, '0')}:00+09:00`
               }
             }
           }
@@ -163,125 +157,80 @@ const NotionBookingSystem = () => {
     }
   }, [weekOffset]);
 
-  // 時間の競合チェック
-  const checkTimeConflict = (date, startTime, endTime) => {
-    if (isHoliday(date)) return true;
-
-    const targetStart = new Date(`${date.toISOString().split('T')[0]}T${startTime}:00`);
-    const targetEnd = new Date(`${date.toISOString().split('T')[0]}T${endTime}:00`);
-
-    return notionEvents.some(event => {
-      const eventStart = event.properties['日付']?.date?.start;
-      const eventEnd = event.properties['日付']?.date?.end;
-      
-      if (!eventStart || !eventEnd) return false;
-      
-      const existingStart = new Date(eventStart);
-      const existingEnd = new Date(eventEnd);
-      
-      return (targetStart < existingEnd && targetEnd > existingStart);
-    });
-  };
-
-  // 時間スロットの予約状況を確認
-  const getSlotStatus = (date, time) => {
-    if (isHoliday(date)) return 'holiday';
+  // Notionのイベントと照合して予約状況を確認（長時間予定対応版）
+  const getBookingStatus = (date, time) => {
+    if (isHoliday(date)) {
+      return 'holiday';
+    }
     
     const targetDateTime = `${date.toISOString().split('T')[0]}T${time}:00`;
+    const targetTime = new Date(targetDateTime);
     
     const hasNotionEvent = notionEvents.some(event => {
-      const eventStart = event.properties['日付']?.date?.start;
-      const eventEnd = event.properties['日付']?.date?.end;
+      const eventStart = event.properties['予定日']?.date?.start;
+      const eventEnd = event.properties['予定日']?.date?.end;
       
-      if (!eventStart || !eventEnd) return false;
+      if (!eventStart) return false;
       
       const existingStart = new Date(eventStart);
-      const existingEnd = new Date(eventEnd);
-      const targetTime = new Date(targetDateTime);
+      let existingEnd;
       
-      // デバッグ用ログ
-      console.log('チェック:', {
-        targetTime: targetDateTime,
-        eventStart: eventStart,
-        eventEnd: eventEnd,
-        targetTimeObj: targetTime.toISOString(),
-        existingStartObj: existingStart.toISOString(),
-        existingEndObj: existingEnd.toISOString(),
-        isConflict: targetTime >= existingStart && targetTime < existingEnd
-      });
+      if (eventEnd) {
+        existingEnd = new Date(eventEnd);
+      } else {
+        existingEnd = new Date(existingStart);
+        existingEnd.setHours(existingEnd.getHours() + 1);
+      }
       
       return targetTime >= existingStart && targetTime < existingEnd;
     });
     
     if (hasNotionEvent) return 'booked';
-    return 'available';
+    
+    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${time}`;
+    return bookingData[key] || 'available';
   };
 
-  // 時間スロットの色を決定
-  const getSlotColor = (date, time) => {
-    const status = getSlotStatus(date, time);
-    if (status === 'booked' || status === 'holiday') return 'bg-gray-300 cursor-not-allowed';
-    if (selectedDate && selectedTime && 
-        selectedDate.toDateString() === date.toDateString() && 
-        selectedTime === time) {
-      return 'bg-blue-500 text-white';
-    }
-    return 'bg-teal-100 hover:bg-teal-200 cursor-pointer';
+  // 日付選択時の処理
+  const handleDateSelect = (date) => {
+    if (isHoliday(date)) return;
+    setSelectedDate(date);
+    setShowTimeSlots(true);
   };
 
-  // 時間スロットクリック処理
-  const handleTimeSlotClick = (date, time) => {
-    const status = getSlotStatus(date, time);
+  // 時間選択時の処理
+  const handleTimeSelect = (time) => {
+    const status = getBookingStatus(selectedDate, time);
     if (status === 'available') {
-      setSelectedDate(date);
       setSelectedTime(time);
-      setSelectedStartTime(time);
-      setSelectedEndTime('');
       setShowBookingForm(true);
     }
   };
 
   // 予約処理
   const handleBooking = async () => {
-    if (!selectedDate || !selectedStartTime || !selectedEndTime || !customerName.trim()) {
-      alert('すべての項目を入力してください。');
-      return;
-    }
-
-    if (selectedStartTime >= selectedEndTime) {
-      alert('終了時間は開始時間より後に設定してください。');
-      return;
-    }
-
-    if (checkTimeConflict(selectedDate, selectedStartTime, selectedEndTime)) {
-      alert('選択した時間帯は既に予約が入っています。別の時間を選択してください。');
-      return;
-    }
-
     setIsLoading(true);
     
     try {
       const bookingDataObj = {
         date: selectedDate.toISOString().split('T')[0],
-        startTime: selectedStartTime,
-        endTime: selectedEndTime,
+        time: selectedTime,
         customerName: customerName
       };
       
       const success = await createNotionEvent(bookingDataObj);
       
       if (success) {
-        const bookingKey = `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}-${selectedStartTime}-${selectedEndTime}`;
+        const bookingKey = `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}-${selectedTime}`;
         setBookingData(prev => ({
           ...prev,
           [bookingKey]: 'booked'
         }));
         
         setShowBookingForm(false);
+        setShowTimeSlots(false);
         setSelectedDate(null);
         setSelectedTime(null);
-        setSelectedStartTime('');
-        setSelectedEndTime('');
         setCustomerName('');
         
         alert('予約が完了しました！');
@@ -302,172 +251,262 @@ const NotionBookingSystem = () => {
     return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
+  const formatFullDate = (date) => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${year}年${month}月${day}日`;
+  };
+
   const getDayName = (date) => {
     const days = ['日', '月', '火', '水', '木', '金', '土'];
     return days[date.getDay()];
   };
 
+  const getDateStatus = (date) => {
+    if (isHoliday(date)) return 'holiday';
+    
+    const availableSlots = timeSlots.filter(time => 
+      getBookingStatus(date, time) === 'available'
+    ).length;
+    
+    if (availableSlots === 0) return 'full';
+    if (availableSlots <= 3) return 'few';
+    return 'available';
+  };
+
+  const getDateStatusText = (date) => {
+    const status = getDateStatus(date);
+    switch (status) {
+      case 'holiday': return '休業';
+      case 'full': return '×';
+      case 'few': return '△';
+      case 'available': return '○';
+      default: return '○';
+    }
+  };
+
+  const getDateColor = (date) => {
+    const status = getDateStatus(date);
+    const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
+    
+    if (isSelected) return 'bg-blue-500 text-white border-blue-500';
+    
+    switch (status) {
+      case 'holiday': return 'bg-gray-200 text-gray-500 border-gray-300';
+      case 'full': return 'bg-red-50 text-red-600 border-red-200';
+      case 'few': return 'bg-orange-50 text-orange-600 border-orange-200';
+      case 'available': return 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100';
+      default: return 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100';
+    }
+  };
+
   return (
-    <div className="max-w-6xl mx-auto p-4 bg-white min-h-screen">
-      {/* ヘッダー部分 */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">{settings.systemTitle}</h1>
-        <p className="text-gray-600">{settings.description}</p>
-      </div>
-
-      {/* メインアクションボタン */}
-      <button 
-        className="w-full bg-blue-500 text-white py-4 px-6 rounded-xl mb-8 font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 shadow-lg"
-        disabled={isLoading}
-      >
-        {isLoading ? '読み込み中...' : settings.immediateButtonText}
-      </button>
-
-      {/* 週選択 */}
-      <div className="flex justify-between items-center mb-6 bg-gray-50 p-4 rounded-lg">
-        <button 
-          onClick={() => setWeekOffset(weekOffset - 1)}
-          className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm"
-        >
-          ← 前週
-        </button>
-        <span className="font-semibold text-lg">
-          {weekDates && weekDates.length > 0 ? `${formatDate(weekDates[0])} - ${formatDate(weekDates[6])}` : '読み込み中...'}
-        </span>
-        <button 
-          onClick={() => setWeekOffset(weekOffset + 1)}
-          className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm"
-        >
-          翌週 →
-        </button>
-      </div>
-
-      {/* カレンダーグリッド - 時間表表示 */}
-      <div className="border-2 border-gray-200 rounded-xl overflow-hidden shadow-lg mb-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-md mx-auto bg-white min-h-screen">
         {/* ヘッダー */}
-        <div className="grid grid-cols-8 bg-gray-100 border-b-2 border-gray-200">
-          <div className="p-4 text-center font-bold text-gray-700">時間</div>
-          {weekDates.map((date, index) => (
-            <div key={index} className="p-4 text-center border-l border-gray-200">
-              <div className="font-bold text-gray-800">{formatDate(date)}</div>
-              <div className="text-sm text-gray-600">
-                ({getDayName(date)})
-                {isHoliday(date) && <span className="text-red-500 block text-xs">土日祝日</span>}
-              </div>
-            </div>
-          ))}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 sticky top-0 z-40">
+          <div className="text-center">
+            <h1 className="text-xl font-bold">{settings.systemTitle}</h1>
+            <p className="text-blue-100 text-sm mt-1">{settings.description}</p>
+          </div>
         </div>
 
-        {/* 時間スロット */}
-        {timeOptions.map((time) => (
-          <div key={time} className="grid grid-cols-8 border-b border-gray-200 hover:bg-gray-50">
-            <div className="p-3 text-center font-semibold bg-blue-50 border-l-4 border-blue-500">{time}</div>
-            {weekDates.map((date, dateIndex) => (
-              <div key={dateIndex} className="p-3 text-center border-l border-gray-200">
-                <div 
-                  className={`w-8 h-8 rounded-full mx-auto flex items-center justify-center font-bold text-lg transition-all ${getSlotColor(date, time)}`}
-                  onClick={() => handleTimeSlotClick(date, time)}
+        {/* メインコンテンツ */}
+        <div className="p-4">
+          {!showTimeSlots && !showBookingForm && (
+            <>
+              {/* メインアクションボタン */}
+              <button 
+                className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-4 px-6 rounded-lg mb-6 font-bold text-lg shadow-lg transform active:scale-95 transition-transform"
+                disabled={isLoading}
+              >
+                {isLoading ? '読み込み中...' : settings.immediateButtonText}
+              </button>
+
+              {/* 週選択 */}
+              <div className="flex justify-between items-center mb-4 bg-white rounded-lg shadow-sm border p-3">
+                <button 
+                  onClick={() => setWeekOffset(weekOffset - 1)}
+                  className="px-3 py-2 bg-gray-100 rounded-lg text-gray-600 text-sm"
                 >
-                  {getSlotStatus(date, time) === 'available' ? '○' : '×'}
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      {/* 時間範囲選択予約フォーム */}
-      {showBookingForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
-            <h3 className="text-2xl font-bold text-center mb-6 text-gray-800">予約情報入力</h3>
-            
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-center text-lg font-semibold text-blue-800">
-                📅 {selectedDate && formatDate(selectedDate)} ({selectedDate && getDayName(selectedDate)})
-                {selectedStartTime && <><br/>⏰ 開始時間: {selectedStartTime}</>}
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-lg font-semibold mb-3 text-gray-700">お名前 *</label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:outline-none"
-                  placeholder="お名前を入力してください"
-                  required
-                />
+                  ← 前週
+                </button>
+                <span className="font-bold text-gray-800">
+                  {weekDates && weekDates.length > 0 ? `${formatDate(weekDates[0])} - ${formatDate(weekDates[4])}` : '読み込み中...'}
+                </span>
+                <button 
+                  onClick={() => setWeekOffset(weekOffset + 1)}
+                  className="px-3 py-2 bg-gray-100 rounded-lg text-gray-600 text-sm"
+                >
+                  翌週 →
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700">開始時間 *</label>
-                  <input
-                    type="text"
-                    value={selectedStartTime}
-                    readOnly
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-100 text-center font-semibold"
-                    placeholder="時間を選択"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">カレンダーで選択済み</p>
+              {/* 凡例 */}
+              <div className="bg-white rounded-lg shadow-sm border p-3 mb-4">
+                <div className="grid grid-cols-4 gap-2 text-xs">
+                  <div className="flex items-center">
+                    <span className="w-4 h-4 bg-green-50 border border-green-200 rounded mr-1"></span>
+                    <span className="text-gray-600">○ 空あり</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="w-4 h-4 bg-orange-50 border border-orange-200 rounded mr-1"></span>
+                    <span className="text-gray-600">△ 残少</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="w-4 h-4 bg-red-50 border border-red-200 rounded mr-1"></span>
+                    <span className="text-gray-600">× 満員</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="w-4 h-4 bg-gray-200 border border-gray-300 rounded mr-1"></span>
+                    <span className="text-gray-600">休業</span>
+                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700">終了時間 *</label>
-                  <select
-                    value={selectedEndTime}
-                    onChange={(e) => setSelectedEndTime(e.target.value)}
-                    className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                    required
+              {/* 日付選択 */}
+              <div className="space-y-3">
+                <h2 className="text-lg font-bold text-gray-800 mb-3">📅 日付を選択</h2>
+                {weekDates.map((date, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleDateSelect(date)}
+                    disabled={isHoliday(date) || getDateStatus(date) === 'full'}
+                    className={`w-full p-4 rounded-lg border-2 transition-all text-left ${getDateColor(date)} ${isHoliday(date) || getDateStatus(date) === 'full' ? 'cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
                   >
-                    <option value="">選択してください</option>
-                    {timeOptions.filter(time => !selectedStartTime || time > selectedStartTime).map((time) => (
-                      <option key={time} value={time}>{time}</option>
-                    ))}
-                  </select>
-                </div>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="font-bold text-lg">
+                          {formatDate(date)} ({getDayName(date)})
+                        </div>
+                        <div className="text-sm opacity-75">
+                          {formatFullDate(date)}
+                        </div>
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {getDateStatusText(date)}
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
+            </>
+          )}
 
-              {selectedStartTime && selectedEndTime && (
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <p className="text-center text-green-700 font-semibold">
-                    予約時間: {selectedStartTime} 〜 {selectedEndTime}
+          {/* 時間選択画面 */}
+          {showTimeSlots && !showBookingForm && (
+            <div>
+              <div className="flex items-center mb-4">
+                <button
+                  onClick={() => {
+                    setShowTimeSlots(false);
+                    setSelectedDate(null);
+                  }}
+                  className="mr-3 p-2 text-gray-600"
+                >
+                  ← 戻る
+                </button>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">⏰ 時間を選択</h2>
+                  <p className="text-sm text-gray-600">
+                    {selectedDate && formatFullDate(selectedDate)} ({selectedDate && getDayName(selectedDate)})
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
 
-            <div className="flex space-x-4 mt-6">
-              <button
-                onClick={() => setShowBookingForm(false)}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleBooking}
-                disabled={!customerName.trim() || !selectedStartTime || !selectedEndTime || isLoading}
-                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-              >
-                {isLoading ? '予約中...' : '予約確定'}
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                {timeSlots.map((time) => {
+                  const status = getBookingStatus(selectedDate, time);
+                  const isAvailable = status === 'available';
+                  
+                  return (
+                    <button
+                      key={time}
+                      onClick={() => handleTimeSelect(time)}
+                      disabled={!isAvailable}
+                      className={`p-4 rounded-lg border-2 font-bold text-lg transition-all ${
+                        isAvailable
+                          ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 active:scale-95'
+                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                      }`}
+                    >
+                      <div>{time}</div>
+                      <div className="text-xs mt-1">
+                        {isAvailable ? '予約可能' : '予約済み'}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* 予約フォーム */}
+          {showBookingForm && (
+            <div>
+              <div className="flex items-center mb-4">
+                <button
+                  onClick={() => {
+                    setShowBookingForm(false);
+                    setSelectedTime(null);
+                  }}
+                  className="mr-3 p-2 text-gray-600"
+                >
+                  ← 戻る
+                </button>
+                <h2 className="text-lg font-bold text-gray-800">📝 予約情報入力</h2>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="font-bold text-blue-800 mb-2">予約内容確認</div>
+                <div className="text-blue-700">
+                  📅 {selectedDate && formatFullDate(selectedDate)} ({selectedDate && getDayName(selectedDate)})
+                </div>
+                <div className="text-blue-700">
+                  ⏰ {selectedTime}
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-gray-700 font-bold mb-3">お名前 *</label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:outline-none"
+                    placeholder="お名前を入力してください"
+                    required
+                  />
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowBookingForm(false)}
+                    className="flex-1 py-4 border-2 border-gray-300 text-gray-700 rounded-lg font-bold text-lg"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={handleBooking}
+                    disabled={!customerName.trim() || isLoading}
+                    className="flex-1 py-4 bg-red-500 text-white rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-transform"
+                  >
+                    {isLoading ? '予約中...' : '予約確定'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* 使い方説明 */}
-      <div className="mt-8 p-6 bg-gray-50 rounded-xl">
-        <h3 className="font-bold mb-4 text-lg text-gray-800">📋 予約方法</h3>
-        <ul className="text-gray-600 space-y-2">
-          <li className="flex items-center"><span className="text-green-500 mr-2">○</span>予約可能な時間をクリック</li>
-          <li className="flex items-center"><span className="text-red-500 mr-2">×</span>予約済みまたは土日祝日</li>
-          <li className="flex items-center"><span className="text-blue-500 mr-2">⏰</span>終了時間を選択して予約確定</li>
-          <li className="flex items-center"><span className="text-orange-500 mr-2">📅</span>10:00-23:00の間で予約可能</li>
-        </ul>
+        {/* フッター */}
+        <div className="p-4 bg-gray-100 text-center text-xs text-gray-600">
+          <p>予約は1時間単位です（平日のみ）</p>
+          <p>営業時間：{settings.startHour}:00 - {settings.endHour}:00</p>
+        </div>
       </div>
     </div>
   );
