@@ -499,7 +499,7 @@ const NotionBookingSystem = () => {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-bold mb-3">Xリンク（任意）</label>
+                  <label className="block text-gray-700 font-bold mb-3">Xリンク</label>
                   <input
                     type="url"
                     value={xLink}
