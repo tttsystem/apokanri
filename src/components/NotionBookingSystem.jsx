@@ -6,6 +6,7 @@ const NotionBookingSystem = () => {
   const [bookingData, setBookingData] = useState({});
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [xLink, setXLink] = useState(''); // Xリンク用の状態を追加
   const [weekOffset, setWeekOffset] = useState(0);
   const [showTimeSlots, setShowTimeSlots] = useState(false);
   
@@ -31,7 +32,7 @@ const NotionBookingSystem = () => {
   ];
 
   // Notion API設定
-  const CALENDAR_DATABASE_ID = process.env.REACT_APP_NOTION_DATABASE_ID || '1fa44ae2d2c780a5b27dc7aae5bae1aa';
+  const CALENDAR_DATABASE_ID = '1fa44ae2d2c780a5b27dc7aae5bae1aa';
 
   // 平日のみの週の日付を生成（土日を除外）
   const getCurrentWeekDates = () => {
@@ -108,6 +109,31 @@ const NotionBookingSystem = () => {
   // Notionに新しい予約を追加
   const createNotionEvent = async (bookingData) => {
     try {
+      const properties = {
+        '名前': {
+          title: [
+            {
+              text: {
+                content: bookingData.customerName
+              }
+            }
+          ]
+        },
+        '予定日': {
+          date: {
+            start: `${bookingData.date}T${bookingData.time}:00+09:00`,
+            end: `${bookingData.date}T${String(parseInt(bookingData.time.split(':')[0]) + 1).padStart(2, '0')}:00+09:00`
+          }
+        }
+      };
+
+      // Xリンクが入力されている場合のみ追加
+      if (bookingData.xLink && bookingData.xLink.trim()) {
+        properties['X'] = {
+          url: bookingData.xLink
+        };
+      }
+
       const response = await fetch('/.netlify/functions/notion-create', {
         method: 'POST',
         headers: {
@@ -115,23 +141,7 @@ const NotionBookingSystem = () => {
         },
         body: JSON.stringify({
           parent: { database_id: CALENDAR_DATABASE_ID },
-          properties: {
-            '名前': {
-              title: [
-                {
-                  text: {
-                    content: bookingData.customerName
-                  }
-                }
-              ]
-            },
-            '予定日': {
-              date: {
-                start: `${bookingData.date}T${bookingData.time}:00+09:00`,
-                end: `${bookingData.date}T${String(parseInt(bookingData.time.split(':')[0]) + 1).padStart(2, '0')}:00+09:00`
-              }
-            }
-          }
+          properties: properties
         })
       });
 
@@ -157,14 +167,18 @@ const NotionBookingSystem = () => {
     }
   }, [weekOffset]);
 
-  // Notionのイベントと照合して予約状況を確認（長時間予定対応版）
+  // 修正版: Notionのイベントと照合して予約状況を確認（時間枠の重複を厳密にチェック）
   const getBookingStatus = (date, time) => {
     if (isHoliday(date)) {
       return 'holiday';
     }
     
-    const targetDateTime = `${date.toISOString().split('T')[0]}T${time}:00`;
-    const targetTime = new Date(targetDateTime);
+    const dateString = date.toISOString().split('T')[0];
+    const timeHour = parseInt(time.split(':')[0]);
+    
+    // 予約したい時間枠の開始時刻と終了時刻
+    const slotStart = new Date(`${dateString}T${time}:00`);
+    const slotEnd = new Date(`${dateString}T${String(timeHour + 1).padStart(2, '0')}:00`);
     
     const hasNotionEvent = notionEvents.some(event => {
       const eventStart = event.properties['予定日']?.date?.start;
@@ -178,11 +192,19 @@ const NotionBookingSystem = () => {
       if (eventEnd) {
         existingEnd = new Date(eventEnd);
       } else {
+        // 終了時刻が設定されていない場合は1時間後とする
         existingEnd = new Date(existingStart);
         existingEnd.setHours(existingEnd.getHours() + 1);
       }
       
-      return targetTime >= existingStart && targetTime < existingEnd;
+      // 重複判定: 既存の予定が予約したい時間枠と重複するかどうか
+      // 重複する条件:
+      // 1. 既存の予定の開始時刻が時間枠内にある
+      // 2. 既存の予定の終了時刻が時間枠内にある  
+      // 3. 既存の予定が時間枠を完全に包含する
+      return (
+        (existingStart < slotEnd && existingEnd > slotStart) // 時間枠に重複がある
+      );
     });
     
     if (hasNotionEvent) return 'booked';
@@ -215,7 +237,8 @@ const NotionBookingSystem = () => {
       const bookingDataObj = {
         date: selectedDate.toISOString().split('T')[0],
         time: selectedTime,
-        customerName: customerName
+        customerName: customerName,
+        xLink: xLink // Xリンクを追加
       };
       
       const success = await createNotionEvent(bookingDataObj);
@@ -232,6 +255,7 @@ const NotionBookingSystem = () => {
         setSelectedDate(null);
         setSelectedTime(null);
         setCustomerName('');
+        setXLink(''); // Xリンクもリセット
         
         alert('予約が完了しました！');
         await fetchNotionCalendar();
@@ -471,6 +495,17 @@ const NotionBookingSystem = () => {
                     className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:outline-none"
                     placeholder="お名前を入力してください"
                     required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-bold mb-3">Xリンク（任意）</label>
+                  <input
+                    type="url"
+                    value={xLink}
+                    onChange={(e) => setXLink(e.target.value)}
+                    className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:outline-none"
+                    placeholder="https://x.com/username"
                   />
                 </div>
 
