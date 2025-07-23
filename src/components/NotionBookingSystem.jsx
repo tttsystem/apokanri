@@ -124,15 +124,18 @@ const NotionBookingSystem = () => {
             start: `${bookingData.date}T${bookingData.time}:00+09:00`,
             end: `${bookingData.date}T${String(parseInt(bookingData.time.split(':')[0]) + 1).padStart(2, '0')}:00+09:00`
           }
+        },
+        'X': {
+          url: bookingData.xLink
+        },
+        '対応者': {
+          people: [
+            {
+              id: '1ffd872b-594c-8107-b306-000269021f07'
+            }
+          ]
         }
       };
-
-      // Xリンクが入力されている場合のみ追加
-      if (bookingData.xLink && bookingData.xLink.trim()) {
-        properties['X'] = {
-          url: bookingData.xLink
-        };
-      }
 
       const response = await fetch('/.netlify/functions/notion-create', {
         method: 'POST',
@@ -499,13 +502,14 @@ const NotionBookingSystem = () => {
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-bold mb-3">Xリンク</label>
+                  <label className="block text-gray-700 font-bold mb-3">Xリンク *</label>
                   <input
                     type="url"
                     value={xLink}
                     onChange={(e) => setXLink(e.target.value)}
                     className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:outline-none"
                     placeholder="https://x.com/username"
+                    required
                   />
                 </div>
 
@@ -518,7 +522,7 @@ const NotionBookingSystem = () => {
                   </button>
                   <button
                     onClick={handleBooking}
-                    disabled={!customerName.trim() || isLoading}
+                    disabled={!customerName.trim() || !xLink.trim() || isLoading}
                     className="flex-1 py-4 bg-red-500 text-white rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-transform"
                   >
                     {isLoading ? '予約中...' : '予約確定'}
