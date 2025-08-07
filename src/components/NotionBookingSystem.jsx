@@ -96,6 +96,7 @@ const NotionBookingSystem = () => {
       }
 
       const data = await response.json();
+      console.log('Notionから取得したイベント:', data.results);
       setNotionEvents(data.results || []);
 
     } catch (error) {
@@ -189,6 +190,8 @@ const NotionBookingSystem = () => {
       const eventEnd = event.properties['予定日']?.date?.end;
       const callMethod = event.properties['通話方法']?.select?.name;
       
+      console.log('通話方法チェック:', callMethod, 'イベント:', event.properties['名前']?.title?.[0]?.text?.content);
+      
       if (!eventStart || callMethod !== '対面') return false;
       
       const existingStart = new Date(eventStart);
@@ -207,6 +210,12 @@ const NotionBookingSystem = () => {
       blockStart.setHours(blockStart.getHours() - 1);
       const blockEnd = new Date(existingEnd);
       blockEnd.setHours(blockEnd.getHours() + 1);
+      
+      console.log('対面通話検出 - ブロック範囲:', {
+        original: `${existingStart.toLocaleTimeString()} - ${existingEnd.toLocaleTimeString()}`,
+        blocked: `${blockStart.toLocaleTimeString()} - ${blockEnd.toLocaleTimeString()}`,
+        checking: `${slotStart.toLocaleTimeString()} - ${slotEnd.toLocaleTimeString()}`
+      });
       
       // ブロック時間帯と予約したい時間枠が重複するかチェック
       return (blockStart < slotEnd && blockEnd > slotStart);
