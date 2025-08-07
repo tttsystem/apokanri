@@ -183,6 +183,37 @@ const NotionBookingSystem = () => {
     const slotStart = new Date(`${dateString}T${time}:00`);
     const slotEnd = new Date(`${dateString}T${String(timeHour + 1).padStart(2, '0')}:00`);
     
+    // 対面通話の前後1時間をブロックするチェック
+    const hasBlockedTimeForInPerson = notionEvents.some(event => {
+      const eventStart = event.properties['予定日']?.date?.start;
+      const eventEnd = event.properties['予定日']?.date?.end;
+      const callMethod = event.properties['通話方法']?.select?.name;
+      
+      if (!eventStart || callMethod !== '対面') return false;
+      
+      const existingStart = new Date(eventStart);
+      let existingEnd;
+      
+      if (eventEnd) {
+        existingEnd = new Date(eventEnd);
+      } else {
+        // 終了時刻が設定されていない場合は1時間後とする
+        existingEnd = new Date(existingStart);
+        existingEnd.setHours(existingEnd.getHours() + 1);
+      }
+      
+      // 対面通話の前後1時間をブロック
+      const blockStart = new Date(existingStart);
+      blockStart.setHours(blockStart.getHours() - 1);
+      const blockEnd = new Date(existingEnd);
+      blockEnd.setHours(blockEnd.getHours() + 1);
+      
+      // ブロック時間帯と予約したい時間枠が重複するかチェック
+      return (blockStart < slotEnd && blockEnd > slotStart);
+    });
+    
+    if (hasBlockedTimeForInPerson) return 'booked';
+    
     const hasNotionEvent = notionEvents.some(event => {
       const eventStart = event.properties['予定日']?.date?.start;
       const eventEnd = event.properties['予定日']?.date?.end;
