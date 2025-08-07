@@ -184,7 +184,7 @@ const NotionBookingSystem = () => {
     const slotStart = new Date(`${dateString}T${time}:00`);
     const slotEnd = new Date(`${dateString}T${String(timeHour + 1).padStart(2, '0')}:00`);
     
-    // 対面通話の前後1時間をブロックするチェック
+    // 対面通話の前後2時間をブロックするチェック
     const hasBlockedTimeForInPerson = notionEvents.some(event => {
       const eventStart = event.properties['予定日']?.date?.start;
       const eventEnd = event.properties['予定日']?.date?.end;
@@ -201,24 +201,26 @@ const NotionBookingSystem = () => {
         existingEnd = new Date(eventEnd);
       } else {
         // 終了時刻が設定されていない場合は1時間後とする
-        existingEnd = new Date(existingStart);
-        existingEnd.setHours(existingEnd.getHours() + 1);
+        existingEnd = new Date(existingStart.getTime() + 60 * 60 * 1000);
       }
       
-      // 対面通話の前後1時間をブロック
-      const blockStart = new Date(existingStart);
-      blockStart.setHours(blockStart.getHours() - 1);
-      const blockEnd = new Date(existingEnd);
-      blockEnd.setHours(blockEnd.getHours() + 1);
+      // 対面通話の前後2時間をブロック（ミリ秒単位で計算）
+      const blockStart = new Date(existingStart.getTime() - 2 * 60 * 60 * 1000); // 2時間前
+      const blockEnd = new Date(existingEnd.getTime() + 2 * 60 * 60 * 1000); // 2時間後
       
       console.log('対面通話検出 - ブロック範囲:', {
         original: `${existingStart.toLocaleTimeString()} - ${existingEnd.toLocaleTimeString()}`,
         blocked: `${blockStart.toLocaleTimeString()} - ${blockEnd.toLocaleTimeString()}`,
-        checking: `${slotStart.toLocaleTimeString()} - ${slotEnd.toLocaleTimeString()}`
+        checking: `${slotStart.toLocaleTimeString()} - ${slotEnd.toLocaleTimeString()}`,
+        slotTime: time
       });
       
       // ブロック時間帯と予約したい時間枠が重複するかチェック
-      return (blockStart < slotEnd && blockEnd > slotStart);
+      const isBlocked = (blockStart < slotEnd && blockEnd > slotStart);
+      if (isBlocked) {
+        console.log(`時間 ${time} は対面通話のためブロック`);
+      }
+      return isBlocked;
     });
     
     if (hasBlockedTimeForInPerson) return 'booked';
