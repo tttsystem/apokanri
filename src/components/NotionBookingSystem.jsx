@@ -14,6 +14,7 @@ const NotionBookingSystem = () => {
   const [notionEvents, setNotionEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true); // 初回読み込み中フラグ
+  const [isWeekChanging, setIsWeekChanging] = useState(false); // 週切り替え中フラグ
 
   // システム設定（コードで直接変更）
   const settings = {
@@ -71,12 +72,17 @@ const NotionBookingSystem = () => {
   const timeSlots = generateTimeSlots(settings.startHour, settings.endHour);
 
   // Notionからカレンダーイベントを取得
-  const fetchNotionCalendar = async () => {
+  const fetchNotionCalendar = async (isWeekChange = false, targetWeekDates = null) => {
     try {
       setIsLoading(true);
-      if (isInitialLoading) {
+      if (isWeekChange) {
+        setIsWeekChanging(true);
+      } else if (isInitialLoading) {
         setIsInitialLoading(true);
       }
+      
+      // 対象の週データを決定（節約のため）
+      const datesForQuery = targetWeekDates || weekDates;
       
       const response = await fetch('/.netlify/functions/notion-query', {
         method: 'POST',
@@ -88,8 +94,8 @@ const NotionBookingSystem = () => {
           filter: {
             property: '予定日',
             date: {
-              on_or_after: weekDates[0].toISOString().split('T')[0],
-              on_or_before: weekDates[4].toISOString().split('T')[0]
+              on_or_after: datesForQuery[0].toISOString().split('T')[0],
+              on_or_before: datesForQuery[4].toISOString().split('T')[0]
             }
           }
         })
@@ -109,6 +115,7 @@ const NotionBookingSystem = () => {
     } finally {
       setIsLoading(false);
       setIsInitialLoading(false);
+      setIsWeekChanging(false);
     }
   };
 
@@ -169,12 +176,40 @@ const NotionBookingSystem = () => {
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (weekDates && weekDates.length > 0) {
-      fetchNotionCalendar();
+  // 週が変わったときのデータ取得
+  const handleWeekChange = async (newOffset) => {
+    // 週切り替え時はすぐにフラグを立てる
+    setIsWeekChanging(true);
+    
+    // 新しい週の日付を事前に計算
+    const today = new Date();
+    const currentDay = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - currentDay + 1 + (newOffset * 7));
+    
+    const newWeekDates = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      newWeekDates.push(date);
     }
-  }, [weekOffset]);
+    
+    // データ取得と週の更新を同時に実行
+    await Promise.all([
+      fetchNotionCalendar(true, newWeekDates),
+      new Promise(resolve => {
+        setWeekOffset(newOffset);
+        resolve();
+      })
+    ]);
+  };
+
+  // 初回読み込みのみを処理
+  useEffect(() => {
+    if (weekDates && weekDates.length > 0 && isInitialLoading) {
+      fetchNotionCalendar(false);
+    }
+  }, [weekDates, isInitialLoading]);
 
   // 修正版: Notionのイベントと照合して予約状況を確認（時間枠の重複を厳密にチェック）
   const getBookingStatus = (date, time) => {
@@ -266,7 +301,7 @@ const NotionBookingSystem = () => {
   // 日付選択時の処理
   const handleDateSelect = (date) => {
     // 読み込み中は操作を無効化
-    if (isInitialLoading) {
+    if (isInitialLoading || isWeekChanging) {
       alert('データを読み込み中です。しばらくお待ちください。');
       return;
     }
@@ -290,7 +325,7 @@ const NotionBookingSystem = () => {
   // 時間選択時の処理
   const handleTimeSelect = (time) => {
     // 読み込み中は操作を無効化
-    if (isInitialLoading) {
+    if (isInitialLoading || isWeekChanging) {
       alert('データを読み込み中です。しばらくお待ちください。');
       return;
     }
@@ -441,8 +476,8 @@ const NotionBookingSystem = () => {
               {/* 週選択 */}
               <div className="flex justify-between items-center mb-4 bg-white rounded-lg shadow-sm border p-3">
                 <button 
-                  onClick={() => setWeekOffset(weekOffset - 1)}
-                  disabled={isInitialLoading}
+                  onClick={() => handleWeekChange(weekOffset - 1)}
+                  disabled={isInitialLoading || isWeekChanging}
                   className="px-3 py-2 bg-gray-100 rounded-lg text-gray-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ← 前週
@@ -451,8 +486,8 @@ const NotionBookingSystem = () => {
                   {weekDates && weekDates.length > 0 ? `${formatDate(weekDates[0])} - ${formatDate(weekDates[4])}` : '読み込み中...'}
                 </span>
                 <button 
-                  onClick={() => setWeekOffset(weekOffset + 1)}
-                  disabled={isInitialLoading}
+                  onClick={() => handleWeekChange(weekOffset + 1)}
+                  disabled={isInitialLoading || isWeekChanging}
                   className="px-3 py-2 bg-gray-100 rounded-lg text-gray-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   翌週 →
@@ -486,9 +521,11 @@ const NotionBookingSystem = () => {
                 <h2 className="text-lg font-bold text-gray-800 mb-3">📅 日付を選択</h2>
                 
                 {/* 読み込み中の表示 */}
-                {isInitialLoading && (
+                {(isInitialLoading || isWeekChanging) && (
                   <div className="text-center py-8 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="text-blue-600 font-bold mb-2">読み込み中...</div>
+                    <div className="text-blue-600 font-bold mb-2">
+                      {isWeekChanging ? '週データ読み込み中...' : '読み込み中...'}
+                    </div>
                     <div className="text-blue-500 text-sm">データを読み込んでいます。しばらくお待ちください。</div>
                   </div>
                 )}
@@ -497,8 +534,8 @@ const NotionBookingSystem = () => {
                   <button
                     key={index}
                     onClick={() => handleDateSelect(date)}
-                    disabled={isInitialLoading || isHoliday(date) || getDateStatus(date) === 'full'}
-                    className={`w-full p-4 rounded-lg border-2 transition-all text-left ${isInitialLoading ? 'opacity-50' : ''} ${getDateColor(date)} ${isInitialLoading || isHoliday(date) || getDateStatus(date) === 'full' ? 'cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
+                    disabled={isInitialLoading || isWeekChanging || isHoliday(date) || getDateStatus(date) === 'full'}
+                    className={`w-full p-4 rounded-lg border-2 transition-all text-left ${isInitialLoading || isWeekChanging ? 'opacity-50' : ''} ${getDateColor(date)} ${isInitialLoading || isWeekChanging || isHoliday(date) || getDateStatus(date) === 'full' ? 'cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
                   >
                     <div className="flex justify-between items-center">
                       <div>
@@ -510,7 +547,7 @@ const NotionBookingSystem = () => {
                         </div>
                       </div>
                       <div className="text-2xl font-bold">
-                        {isInitialLoading ? '...' : getDateStatusText(date)}
+                        {(isInitialLoading || isWeekChanging) ? '...' : getDateStatusText(date)}
                       </div>
                     </div>
                   </button>
