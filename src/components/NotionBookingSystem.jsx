@@ -13,6 +13,7 @@ const NotionBookingSystem = () => {
   // Notionからカレンダーデータを取得
   const [notionEvents, setNotionEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true); // 初回読み込み中フラグ
 
   // システム設定（コードで直接変更）
   const settings = {
@@ -73,6 +74,9 @@ const NotionBookingSystem = () => {
   const fetchNotionCalendar = async () => {
     try {
       setIsLoading(true);
+      if (isInitialLoading) {
+        setIsInitialLoading(true);
+      }
       
       const response = await fetch('/.netlify/functions/notion-query', {
         method: 'POST',
@@ -104,6 +108,7 @@ const NotionBookingSystem = () => {
       setNotionEvents([]);
     } finally {
       setIsLoading(false);
+      setIsInitialLoading(false);
     }
   };
 
@@ -260,22 +265,69 @@ const NotionBookingSystem = () => {
 
   // 日付選択時の処理
   const handleDateSelect = (date) => {
-    if (isHoliday(date)) return;
+    // 読み込み中は操作を無効化
+    if (isInitialLoading) {
+      alert('データを読み込み中です。しばらくお待ちください。');
+      return;
+    }
+    
+    // 祝日の場合はエラーメッセージを表示
+    if (isHoliday(date)) {
+      alert('祝日は予約できません。他の日付を選択してください。');
+      return;
+    }
+    
+    // 満員の場合もエラーメッセージを表示
+    if (getDateStatus(date) === 'full') {
+      alert('選択した日付は満員です。他の日付を選択してください。');
+      return;
+    }
+    
     setSelectedDate(date);
     setShowTimeSlots(true);
   };
 
   // 時間選択時の処理
   const handleTimeSelect = (time) => {
+    // 読み込み中は操作を無効化
+    if (isInitialLoading) {
+      alert('データを読み込み中です。しばらくお待ちください。');
+      return;
+    }
+    
     const status = getBookingStatus(selectedDate, time);
     if (status === 'available') {
       setSelectedTime(time);
       setShowBookingForm(true);
+    } else {
+      alert('選択した時間帯は予約できません。他の時間を選択してください。');
     }
   };
 
   // 予約処理
   const handleBooking = async () => {
+    // 予約前に再度重複チェック
+    await fetchNotionCalendar();
+    
+    // 選択した日時が祝日でないか再確認
+    if (isHoliday(selectedDate)) {
+      alert('エラー: 祝日は予約できません。');
+      setShowBookingForm(false);
+      setShowTimeSlots(false);
+      setSelectedDate(null);
+      setSelectedTime(null);
+      return;
+    }
+    
+    // 最新のデータで重複チェック
+    const currentStatus = getBookingStatus(selectedDate, selectedTime);
+    if (currentStatus !== 'available') {
+      alert('エラー: 選択した時間帯は既に予約済みです。他の時間を選択してください。');
+      setShowBookingForm(false);
+      setSelectedTime(null);
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -390,7 +442,8 @@ const NotionBookingSystem = () => {
               <div className="flex justify-between items-center mb-4 bg-white rounded-lg shadow-sm border p-3">
                 <button 
                   onClick={() => setWeekOffset(weekOffset - 1)}
-                  className="px-3 py-2 bg-gray-100 rounded-lg text-gray-600 text-sm"
+                  disabled={isInitialLoading}
+                  className="px-3 py-2 bg-gray-100 rounded-lg text-gray-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ← 前週
                 </button>
@@ -399,7 +452,8 @@ const NotionBookingSystem = () => {
                 </span>
                 <button 
                   onClick={() => setWeekOffset(weekOffset + 1)}
-                  className="px-3 py-2 bg-gray-100 rounded-lg text-gray-600 text-sm"
+                  disabled={isInitialLoading}
+                  className="px-3 py-2 bg-gray-100 rounded-lg text-gray-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   翌週 →
                 </button>
@@ -430,12 +484,21 @@ const NotionBookingSystem = () => {
               {/* 日付選択 */}
               <div className="space-y-3">
                 <h2 className="text-lg font-bold text-gray-800 mb-3">📅 日付を選択</h2>
+                
+                {/* 読み込み中の表示 */}
+                {isInitialLoading && (
+                  <div className="text-center py-8 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="text-blue-600 font-bold mb-2">読み込み中...</div>
+                    <div className="text-blue-500 text-sm">データを読み込んでいます。しばらくお待ちください。</div>
+                  </div>
+                )}
+                
                 {weekDates.map((date, index) => (
                   <button
                     key={index}
                     onClick={() => handleDateSelect(date)}
-                    disabled={isHoliday(date) || getDateStatus(date) === 'full'}
-                    className={`w-full p-4 rounded-lg border-2 transition-all text-left ${getDateColor(date)} ${isHoliday(date) || getDateStatus(date) === 'full' ? 'cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
+                    disabled={isInitialLoading || isHoliday(date) || getDateStatus(date) === 'full'}
+                    className={`w-full p-4 rounded-lg border-2 transition-all text-left ${isInitialLoading ? 'opacity-50' : ''} ${getDateColor(date)} ${isInitialLoading || isHoliday(date) || getDateStatus(date) === 'full' ? 'cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
                   >
                     <div className="flex justify-between items-center">
                       <div>
@@ -447,7 +510,7 @@ const NotionBookingSystem = () => {
                         </div>
                       </div>
                       <div className="text-2xl font-bold">
-                        {getDateStatusText(date)}
+                        {isInitialLoading ? '...' : getDateStatusText(date)}
                       </div>
                     </div>
                   </button>
