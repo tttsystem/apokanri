@@ -7,6 +7,7 @@ const NotionBookingSystem = () => {
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [xLink, setXLink] = useState(''); // Xリンク用の状態を追加
+  const [remarks, setRemarks] = useState(''); // 備考用の状態を追加
   const [weekOffset, setWeekOffset] = useState(0);
   const [showTimeSlots, setShowTimeSlots] = useState(false);
   
@@ -140,6 +141,15 @@ const NotionBookingSystem = () => {
         },
         'X': {
           url: bookingData.xLink
+        },
+        '備考': {
+          rich_text: bookingData.remarks ? [
+            {
+              text: {
+                content: bookingData.remarks
+              }
+            }
+          ] : []
         },
         '対応者': {
           people: [
@@ -370,7 +380,8 @@ const NotionBookingSystem = () => {
         date: selectedDate.toISOString().split('T')[0],
         time: selectedTime,
         customerName: customerName,
-        xLink: xLink // Xリンクを追加
+        xLink: xLink, // Xリンクを追加
+        remarks: remarks // 備考を追加
       };
       
       const success = await createNotionEvent(bookingDataObj);
@@ -388,6 +399,7 @@ const NotionBookingSystem = () => {
         setSelectedTime(null);
         setCustomerName('');
         setXLink(''); // Xリンクもリセット
+        setRemarks(''); // 備考もリセット
         
         alert('予約が完了しました！');
         await fetchNotionCalendar();
@@ -652,6 +664,17 @@ const NotionBookingSystem = () => {
                     className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:outline-none"
                     placeholder="https://x.com/username"
                     required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-bold mb-3">備考 (任意)</label>
+                  <textarea
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    className="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:outline-none resize-none"
+                    placeholder="ご要望や連絡事項がありましたらご記入ください"
+                    rows="3"
                   />
                 </div>
 
