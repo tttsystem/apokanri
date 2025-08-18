@@ -108,6 +108,24 @@ const NotionBookingSystem = () => {
 
       const data = await response.json();
       console.log('Notionから取得したイベント:', data.results);
+      
+      // デバッグ: 各イベントの詳細を表示
+      data.results?.forEach(event => {
+        const eventName = event.properties['名前']?.title?.[0]?.text?.content || '名前なし';
+        const eventStart = event.properties['予定日']?.date?.start;
+        const eventEnd = event.properties['予定日']?.date?.end;
+        
+        if (eventStart) {
+          const start = new Date(eventStart);
+          const end = eventEnd ? new Date(eventEnd) : null;
+          console.log(`📅 イベント: ${eventName}`, {
+            開始: `${start.toLocaleDateString()} ${start.getHours()}:${String(start.getMinutes()).padStart(2, '0')}`,
+            終了: end ? `${end.toLocaleDateString()} ${end.getHours()}:${String(end.getMinutes()).padStart(2, '0')}` : '終了時刻なし（1時間と仮定）',
+            元データ: { start: eventStart, end: eventEnd }
+          });
+        }
+      });
+      
       setNotionEvents(data.results || []);
 
     } catch (error) {
@@ -230,9 +248,15 @@ const NotionBookingSystem = () => {
     const dateString = date.toISOString().split('T')[0];
     const timeHour = parseInt(time.split(':')[0]);
     
-    // 予約したい時間枠の開始時刻と終了時刻
-    const slotStart = new Date(`${dateString}T${time}:00`);
-    const slotEnd = new Date(`${dateString}T${String(timeHour + 1).padStart(2, '0')}:00`);
+    // 予約したい時間枠の開始時刻と終了時刻（タイムゾーンを考慮）
+    const slotStart = new Date(`${dateString}T${time}:00+09:00`);
+    const slotEnd = new Date(`${dateString}T${String(timeHour + 1).padStart(2, '0')}:00+09:00`);
+    
+    // デバッグ用: 現在チェック中の時間枠
+    console.log(`チェック中: ${dateString} ${time}`, {
+      slotStart: slotStart.toISOString(),
+      slotEnd: slotEnd.toISOString()
+    });
     
     // 対面通話の前後2時間をブロックするチェック
     const hasBlockedTimeForInPerson = notionEvents.some(event => {
@@ -278,6 +302,7 @@ const NotionBookingSystem = () => {
     const hasNotionEvent = notionEvents.some(event => {
       const eventStart = event.properties['予定日']?.date?.start;
       const eventEnd = event.properties['予定日']?.date?.end;
+      const eventName = event.properties['名前']?.title?.[0]?.text?.content || '名前なし';
       
       if (!eventStart) return false;
       
@@ -288,18 +313,25 @@ const NotionBookingSystem = () => {
         existingEnd = new Date(eventEnd);
       } else {
         // 終了時刻が設定されていない場合は1時間後とする
-        existingEnd = new Date(existingStart);
-        existingEnd.setHours(existingEnd.getHours() + 1);
+        existingEnd = new Date(existingStart.getTime() + 60 * 60 * 1000);
       }
       
+      // デバッグ用ログ
+      console.log(`既存予約: ${eventName}`, {
+        start: existingStart.toISOString(),
+        end: existingEnd.toISOString(),
+        startHour: existingStart.getHours(),
+        endHour: existingEnd.getHours()
+      });
+      
       // 重複判定: 既存の予定が予約したい時間枠と重複するかどうか
-      // 重複する条件:
-      // 1. 既存の予定の開始時刻が時間枠内にある
-      // 2. 既存の予定の終了時刻が時間枠内にある  
-      // 3. 既存の予定が時間枠を完全に包含する
-      return (
-        (existingStart < slotEnd && existingEnd > slotStart) // 時間枠に重複がある
-      );
+      const isOverlapping = (existingStart < slotEnd && existingEnd > slotStart);
+      
+      if (isOverlapping) {
+        console.log(`⚠️ 重複検出: ${time} は ${eventName} (${existingStart.getHours()}:00-${existingEnd.getHours()}:00) と重複`);
+      }
+      
+      return isOverlapping;
     });
     
     if (hasNotionEvent) return 'booked';
