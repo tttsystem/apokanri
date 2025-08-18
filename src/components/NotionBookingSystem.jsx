@@ -20,8 +20,8 @@ const NotionBookingSystem = () => {
     immediateButtonText: '今すぐ予約する',
     startHour: 11,
     endHour: 21,
-    systemTitle: 'Premium Booking System',
-    description: 'あなたの特別な時間を予約'
+    systemTitle: '予約システム',
+    description: 'ご希望の日時を選択してください'
   };
 
   const holidays2025 = [
