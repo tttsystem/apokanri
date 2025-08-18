@@ -325,10 +325,24 @@ const NotionBookingSystem = () => {
       });
       
       // 重複判定: 既存の予定が予約したい時間枠と重複するかどうか
+      // 詳細なデバッグログ
+      console.log(`詳細チェック: ${time}`, {
+        slotStart: slotStart.toISOString(),
+        slotEnd: slotEnd.toISOString(),
+        existingStart: existingStart.toISOString(),
+        existingEnd: existingEnd.toISOString(),
+        slotStartTime: slotStart.getTime(),
+        slotEndTime: slotEnd.getTime(),
+        existingStartTime: existingStart.getTime(),
+        existingEndTime: existingEnd.getTime()
+      });
+      
       const isOverlapping = (existingStart < slotEnd && existingEnd > slotStart);
       
       if (isOverlapping) {
         console.log(`⚠️ 重複検出: ${time} は ${eventName} (${existingStart.getHours()}:00-${existingEnd.getHours()}:00) と重複`);
+      } else {
+        console.log(`✅ 重複なし: ${time} は ${eventName} と重複しない`);
       }
       
       return isOverlapping;
