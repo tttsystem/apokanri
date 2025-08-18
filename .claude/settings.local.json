@@ -3,7 +3,9 @@
     "allow": [
       "Bash(git add:*)",
       "Bash(git push:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(del srccomponentsThreeScene.jsx)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
