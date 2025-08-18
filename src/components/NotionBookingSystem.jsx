@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ThreeScene from './ThreeScene';
 
 const NotionBookingSystem = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -570,6 +571,13 @@ const NotionBookingSystem = () => {
             <p className="text-blue-100 text-sm mt-1">{settings.description}</p>
           </div>
         </div>
+
+        {/* 3Dインタラクティブヘッダー */}
+        {!showTimeSlots && !showBookingForm && (
+          <div className="p-4 pb-2">
+            <ThreeScene isVisible={!showTimeSlots && !showBookingForm} />
+          </div>
+        )}
 
         {/* メインコンテンツ */}
         <div className="p-4">
