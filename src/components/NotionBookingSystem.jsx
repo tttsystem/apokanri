@@ -299,6 +299,50 @@ const NotionBookingSystem = () => {
     
     if (hasBlockedTimeForInPerson) return 'booked';
     
+    // 撮影の前はすべて・後は2時間をブロックするチェック
+    const hasBlockedTimeForShooting = notionEvents.some(event => {
+      const eventStart = event.properties['予定日']?.date?.start;
+      const eventEnd = event.properties['予定日']?.date?.end;
+      const callMethod = event.properties['通話方法']?.select?.name;
+      const eventName = event.properties['名前']?.title?.[0]?.text?.content || '名前なし';
+      
+      if (!eventStart || callMethod !== '撮影') return false;
+      
+      const existingStart = new Date(eventStart);
+      let existingEnd;
+      
+      if (eventEnd) {
+        existingEnd = new Date(eventEnd);
+      } else {
+        // 終了時刻が設定されていない場合は1時間後とする
+        existingEnd = new Date(existingStart.getTime() + 60 * 60 * 1000);
+      }
+      
+      // 撮影の場合：前は当日開始時刻まですべて、後は2時間をブロック
+      const dayStart = new Date(existingStart);
+      dayStart.setHours(0, 0, 0, 0); // その日の00:00
+      
+      const blockStart = dayStart; // その日の最初から
+      const blockEnd = new Date(existingEnd.getTime() + 2 * 60 * 60 * 1000); // 撮影終了から2時間後
+      
+      console.log('撮影検出 - ブロック範囲:', {
+        eventName,
+        original: `${existingStart.toLocaleTimeString()} - ${existingEnd.toLocaleTimeString()}`,
+        blocked: `${blockStart.toLocaleTimeString()} - ${blockEnd.toLocaleTimeString()}`,
+        checking: `${slotStart.toLocaleTimeString()} - ${slotEnd.toLocaleTimeString()}`,
+        slotTime: time
+      });
+      
+      // ブロック時間帯と予約したい時間枠が重複するかチェック
+      const isBlocked = (blockStart < slotEnd && blockEnd > slotStart);
+      if (isBlocked) {
+        console.log(`時間 ${time} は撮影のためブロック (${eventName})`);
+      }
+      return isBlocked;
+    });
+    
+    if (hasBlockedTimeForShooting) return 'booked';
+    
     const hasNotionEvent = notionEvents.some(event => {
       const eventStart = event.properties['予定日']?.date?.start;
       const eventEnd = event.properties['予定日']?.date?.end;
