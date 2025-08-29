@@ -40,7 +40,19 @@ const NotionBookingSystem = () => {
     monday.setDate(today.getDate() - currentDay + 1 + (weekOffset * 7));
     
     const weekDates = [];
-    for (let i = 0; i < 5; i++) {
+    
+    // 2025年8月30日の週だけ土曜日も含める
+    const isAugust30Week = () => {
+      const august30 = new Date('2025-08-30');
+      const weekStart = new Date(monday);
+      const weekEnd = new Date(monday);
+      weekEnd.setDate(monday.getDate() + 6);
+      return august30 >= weekStart && august30 <= weekEnd;
+    };
+    
+    const daysToShow = isAugust30Week() ? 6 : 5; // 8/30の週は土曜日まで表示
+    
+    for (let i = 0; i < daysToShow; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
       weekDates.push(date);
