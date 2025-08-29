@@ -50,6 +50,12 @@ const NotionBookingSystem = () => {
 
   const isHoliday = (date) => {
     const dateString = date.toISOString().split('T')[0];
+    
+    // 2025年8月30日は例外的に予約可能
+    if (dateString === '2025-08-30') {
+      return false;
+    }
+    
     return holidays2025.includes(dateString);
   };
 

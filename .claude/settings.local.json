@@ -5,9 +5,16 @@
       "Bash(git push:*)",
       "Bash(git commit:*)",
       "Bash(del srccomponentsThreeScene.jsx)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "WebFetch(domain:www.notion.so)",
+      "Bash(mkdir:*)",
+      "Bash(git init:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\Users\\PC01\\Documents",
+      "C:\\c\\Users\\PC01\\Documents"
+    ]
   }
 }
