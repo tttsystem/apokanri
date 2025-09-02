@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 const NotionBookingSystem = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedEndTime, setSelectedEndTime] = useState(null);
   const [bookingData, setBookingData] = useState({});
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -161,7 +162,7 @@ const NotionBookingSystem = () => {
         '予定日': {
           date: {
             start: `${bookingData.date}T${bookingData.time}:00+09:00`,
-            end: `${bookingData.date}T${String(parseInt(bookingData.time.split(':')[0]) + 1).padStart(2, '0')}:00+09:00`
+            end: `${bookingData.date}T${bookingData.endTime}:00+09:00`
           }
         },
         'X': {
@@ -241,7 +242,7 @@ const NotionBookingSystem = () => {
     }
   }, [weekDates, isInitialLoading]);
 
-  const getBookingStatus = (date, time) => {
+  const getBookingStatus = (date, time, endTime = null) => {
     if (isHoliday(date)) {
       return 'holiday';
     }
@@ -250,7 +251,9 @@ const NotionBookingSystem = () => {
     const timeHour = parseInt(time.split(':')[0]);
     
     const slotStart = new Date(`${dateString}T${time}:00+09:00`);
-    const slotEnd = new Date(`${dateString}T${String(timeHour + 1).padStart(2, '0')}:00+09:00`);
+    const slotEnd = endTime 
+      ? new Date(`${dateString}T${endTime}:00+09:00`)
+      : new Date(`${dateString}T${String(timeHour + 1).padStart(2, '0')}:00+09:00`);
     
     console.log(`チェック中: ${dateString} ${time}`, {
       slotStart: slotStart.toISOString(),
@@ -406,12 +409,27 @@ const NotionBookingSystem = () => {
       return;
     }
     
-    const status = getBookingStatus(selectedDate, time);
-    if (status === 'available') {
+    if (!selectedTime) {
       setSelectedTime(time);
-      setShowBookingForm(true);
-    } else {
-      alert('選択した時間帯は予約できません。他の時間を選択してください。');
+      setSelectedEndTime(null);
+    } else if (!selectedEndTime) {
+      const startHour = parseInt(selectedTime.split(':')[0]);
+      const endHour = parseInt(time.split(':')[0]);
+      
+      if (endHour <= startHour) {
+        alert('終了時間は開始時間より後を選択してください。');
+        return;
+      }
+      
+      const status = getBookingStatus(selectedDate, selectedTime, time);
+      if (status === 'available') {
+        setSelectedEndTime(time);
+        setShowBookingForm(true);
+      } else {
+        alert('選択した時間帯は予約できません。他の時間を選択してください。');
+        setSelectedTime(null);
+        setSelectedEndTime(null);
+      }
     }
   };
 
@@ -427,11 +445,12 @@ const NotionBookingSystem = () => {
       return;
     }
     
-    const currentStatus = getBookingStatus(selectedDate, selectedTime);
+    const currentStatus = getBookingStatus(selectedDate, selectedTime, selectedEndTime);
     if (currentStatus !== 'available') {
       alert('エラー: 選択した時間帯は既に予約済みです。他の時間を選択してください。');
       setShowBookingForm(false);
       setSelectedTime(null);
+      setSelectedEndTime(null);
       return;
     }
     
@@ -441,6 +460,7 @@ const NotionBookingSystem = () => {
       const bookingDataObj = {
         date: selectedDate.toISOString().split('T')[0],
         time: selectedTime,
+        endTime: selectedEndTime,
         customerName: customerName,
         xLink: xLink,
         remarks: remarks
@@ -459,6 +479,7 @@ const NotionBookingSystem = () => {
         setShowTimeSlots(false);
         setSelectedDate(null);
         setSelectedTime(null);
+        setSelectedEndTime(null);
         setCustomerName('');
         setXLink('');
         setRemarks('');
@@ -498,7 +519,7 @@ const NotionBookingSystem = () => {
     if (isHoliday(date)) return 'holiday';
     
     const availableSlots = timeSlots.filter(time => 
-      getBookingStatus(date, time) === 'available'
+      getBookingStatus(date, time, null) === 'available'
     ).length;
     
     if (availableSlots === 0) return 'full';
@@ -695,23 +716,51 @@ const NotionBookingSystem = () => {
                   onClick={() => {
                     setShowTimeSlots(false);
                     setSelectedDate(null);
+                    setSelectedTime(null);
+                    setSelectedEndTime(null);
                   }}
                   className="p-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-110"
                 >
                   <i className="fas fa-arrow-left"></i>
                 </button>
                 <div className="ml-4">
-                  <h2 className="text-2xl font-bold text-gradient">時間を選択</h2>
+                  <h2 className="text-2xl font-bold text-gradient">
+                    {!selectedTime ? '開始時間を選択' : '終了時間を選択'}
+                  </h2>
                   <p className="text-sm text-gray-600">
                     {selectedDate && formatFullDate(selectedDate)} ({selectedDate && getDayName(selectedDate)})
+                    {selectedTime && ` 開始: ${selectedTime}`}
                   </p>
                 </div>
               </div>
 
+              {selectedTime && (
+                <div className="glassmorphism rounded-2xl p-4 shadow-lg bg-gradient-to-r from-purple-50 to-pink-50">
+                  <div className="text-sm text-purple-700 font-semibold">
+                    <i className="fas fa-info-circle mr-2"></i>
+                    開始時間 {selectedTime} が選択されました。終了時間を選択してください。
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 {timeSlots.map((time) => {
-                  const status = getBookingStatus(selectedDate, time);
-                  const isAvailable = status === 'available';
+                  let status, isAvailable;
+                  
+                  if (!selectedTime) {
+                    status = getBookingStatus(selectedDate, time);
+                    isAvailable = status === 'available';
+                  } else {
+                    const startHour = parseInt(selectedTime.split(':')[0]);
+                    const currentHour = parseInt(time.split(':')[0]);
+                    
+                    if (currentHour <= startHour) {
+                      isAvailable = false;
+                    } else {
+                      status = getBookingStatus(selectedDate, selectedTime, time);
+                      isAvailable = status === 'available';
+                    }
+                  }
                   
                   return (
                     <button
@@ -719,7 +768,9 @@ const NotionBookingSystem = () => {
                       onClick={() => handleTimeSelect(time)}
                       disabled={!isAvailable}
                       className={`relative p-6 rounded-2xl font-bold text-lg transition-all duration-300 transform ${
-                        isAvailable
+                        selectedTime === time
+                          ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-2xl scale-105 ring-4 ring-purple-300'
+                          : isAvailable
                           ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-lg hover:shadow-xl hover:scale-105 cursor-pointer'
                           : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-50'
                       }`}
@@ -729,7 +780,7 @@ const NotionBookingSystem = () => {
                       </div>
                       <div className="text-xl font-bold">{time}</div>
                       <div className="text-xs mt-1 opacity-90">
-                        {isAvailable ? '予約可能' : '予約済み'}
+                        {selectedTime && time === selectedTime ? '開始時間' : isAvailable ? '予約可能' : '予約済み'}
                       </div>
                       {isAvailable && (
                         <div className="absolute top-2 right-2">
@@ -754,6 +805,7 @@ const NotionBookingSystem = () => {
                   onClick={() => {
                     setShowBookingForm(false);
                     setSelectedTime(null);
+                    setSelectedEndTime(null);
                   }}
                   className="p-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-110"
                 >
@@ -771,7 +823,7 @@ const NotionBookingSystem = () => {
                   </div>
                   <div className="flex items-center">
                     <i className="fas fa-clock mr-3 text-purple-500"></i>
-                    {selectedTime}
+                    {selectedTime}~{selectedEndTime}
                   </div>
                 </div>
               </div>
@@ -857,7 +909,7 @@ const NotionBookingSystem = () => {
           <div className="text-center space-y-2">
             <p className="text-sm text-gray-600">
               <i className="fas fa-info-circle mr-2"></i>
-              予約は1時間単位です（平日のみ）
+              予約は時間範囲を指定できます（平日のみ）
             </p>
             <p className="text-sm text-gray-600">
               <i className="fas fa-clock mr-2"></i>
