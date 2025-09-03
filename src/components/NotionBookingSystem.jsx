@@ -126,9 +126,19 @@ const NotionBookingSystem = () => {
         if (eventStart) {
           const start = new Date(eventStart);
           const end = eventEnd ? new Date(eventEnd) : null;
+          
+          // 時間範囲を計算してブロックされる時間帯を表示
+          const startHour = start.getHours();
+          const endHour = end ? end.getHours() : startHour + 1;
+          const blockedHours = [];
+          for (let h = startHour; h < endHour; h++) {
+            blockedHours.push(`${h}:00`);
+          }
+          
           console.log(`📅 イベント: ${eventName}`, {
             開始: `${start.toLocaleDateString()} ${start.getHours()}:${String(start.getMinutes()).padStart(2, '0')}`,
             終了: end ? `${end.toLocaleDateString()} ${end.getHours()}:${String(end.getMinutes()).padStart(2, '0')}` : '終了時刻なし（1時間と仮定）',
+            ブロック時間: blockedHours.join(', '),
             元データ: { start: eventStart, end: eventEnd }
           });
         }
@@ -360,7 +370,11 @@ const NotionBookingSystem = () => {
         slotStartTime: slotStart.getTime(),
         slotEndTime: slotEnd.getTime(),
         existingStartTime: existingStart.getTime(),
-        existingEndTime: existingEnd.getTime()
+        existingEndTime: existingEnd.getTime(),
+        slotStartLocal: `${slotStart.getHours()}:${String(slotStart.getMinutes()).padStart(2, '0')}`,
+        slotEndLocal: `${slotEnd.getHours()}:${String(slotEnd.getMinutes()).padStart(2, '0')}`,
+        existingStartLocal: `${existingStart.getHours()}:${String(existingStart.getMinutes()).padStart(2, '0')}`,
+        existingEndLocal: `${existingEnd.getHours()}:${String(existingEnd.getMinutes()).padStart(2, '0')}`
       });
       
       const isOverlapping = (existingStart < slotEnd && existingEnd > slotStart);
