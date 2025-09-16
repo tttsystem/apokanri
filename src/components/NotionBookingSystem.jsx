@@ -10,7 +10,9 @@ const NotionBookingSystem = () => {
   const [remarks, setRemarks] = useState(''); 
   const [weekOffset, setWeekOffset] = useState(0);
   const [showTimeSlots, setShowTimeSlots] = useState(false);
-  
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [completedBooking, setCompletedBooking] = useState(null);
+
   const [notionEvents, setNotionEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -461,23 +463,35 @@ const NotionBookingSystem = () => {
       };
       
       const success = await createNotionEvent(bookingDataObj);
-      
+
       if (success) {
         const bookingKey = `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}-${selectedTime}`;
         setBookingData(prev => ({
           ...prev,
           [bookingKey]: 'booked'
         }));
-        
+
+        // 完了した予約情報を保存
+        const year = selectedDate.getFullYear();
+        const month = selectedDate.getMonth() + 1;
+        const day = selectedDate.getDate();
+        const dayName = getDayName(selectedDate);
+
+        setCompletedBooking({
+          year,
+          month,
+          day,
+          dayName,
+          time: selectedTime,
+          customerName: customerName,
+          xLink: xLink,
+          remarks: remarks
+        });
+
         setShowBookingForm(false);
         setShowTimeSlots(false);
-        setSelectedDate(null);
-        setSelectedTime(null);
-        setCustomerName('');
-        setXLink('');
-        setRemarks('');
-        
-        alert('予約が完了しました！');
+        setShowConfirmation(true);
+
         await fetchNotionCalendar();
       } else {
         alert('予約の作成に失敗しました。もう一度お試しください。');
@@ -592,7 +606,102 @@ const NotionBookingSystem = () => {
 
         {/* メインコンテンツ */}
         <div className="p-6 space-y-6">
-          {!showTimeSlots && !showBookingForm && (
+          {/* 予約完了画面 */}
+          {showConfirmation && completedBooking && (
+            <div className="space-y-6">
+              <div className="glassmorphism rounded-2xl p-8 shadow-2xl">
+                <div className="text-center">
+                  <div className="mb-6">
+                    <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-xl">
+                      <i className="fas fa-check text-white text-5xl"></i>
+                    </div>
+                  </div>
+
+                  <h2 className="text-3xl font-bold text-gradient mb-4">予約が完了しました！</h2>
+
+                  <div className="space-y-4 text-left bg-white/50 backdrop-blur rounded-xl p-6 mt-6">
+                    <div className="flex items-center justify-between py-3 border-b border-gray-200">
+                      <span className="font-semibold text-gray-700 flex items-center">
+                        <i className="fas fa-calendar-alt mr-2 text-purple-500"></i>
+                        日付
+                      </span>
+                      <span className="text-lg font-bold text-gray-800">
+                        {completedBooking.year}年{completedBooking.month}月{completedBooking.day}日 ({completedBooking.dayName})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-3 border-b border-gray-200">
+                      <span className="font-semibold text-gray-700 flex items-center">
+                        <i className="fas fa-clock mr-2 text-purple-500"></i>
+                        時間
+                      </span>
+                      <span className="text-lg font-bold text-gray-800">
+                        {completedBooking.time}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-3 border-b border-gray-200">
+                      <span className="font-semibold text-gray-700 flex items-center">
+                        <i className="fas fa-user mr-2 text-purple-500"></i>
+                        お名前
+                      </span>
+                      <span className="text-lg font-bold text-gray-800">
+                        {completedBooking.customerName}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-3 border-b border-gray-200">
+                      <span className="font-semibold text-gray-700 flex items-center">
+                        <i className="fab fa-x-twitter mr-2 text-purple-500"></i>
+                        Xリンク
+                      </span>
+                      <a
+                        href={completedBooking.xLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-lg font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        <i className="fas fa-external-link-alt mr-1 text-sm"></i>
+                        リンクを開く
+                      </a>
+                    </div>
+
+                    {completedBooking.remarks && (
+                      <div className="py-3">
+                        <span className="font-semibold text-gray-700 flex items-center mb-2">
+                          <i className="fas fa-comment-dots mr-2 text-purple-500"></i>
+                          備考
+                        </span>
+                        <p className="text-gray-800 bg-gray-50 rounded-lg p-3">
+                          {completedBooking.remarks}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-8">
+                    <button
+                      onClick={() => {
+                        setShowConfirmation(false);
+                        setCompletedBooking(null);
+                        setSelectedDate(null);
+                        setSelectedTime(null);
+                        setCustomerName('');
+                        setXLink('');
+                        setRemarks('');
+                      }}
+                      className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105"
+                    >
+                      <i className="fas fa-home mr-2"></i>
+                      トップに戻る
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!showTimeSlots && !showBookingForm && !showConfirmation && (
             <>
               {/* 週選択 */}
               <div className="glassmorphism rounded-2xl p-4 shadow-xl">
