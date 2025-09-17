@@ -499,18 +499,27 @@ const EnhancedNotionBooking = () => {
       <div className="relative" style={{ zIndex: 10, pointerEvents: 'none' }}>
         <div className="relative max-w-lg mx-auto" style={{ pointerEvents: 'auto' }}>
           {/* ヘッダー */}
-          <div className="sticky top-0 z-50 glassmorphism-dark shadow-2xl">
+          <div className="sticky top-0 z-50 shadow-2xl" style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 192, 203, 0.3)'
+          }}>
             <div className="p-6" style={{
-              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1))'
+              background: 'linear-gradient(135deg, rgba(255, 192, 203, 0.2), rgba(255, 218, 185, 0.2))'
             }}>
               <div className="text-center">
-                <h1 className="text-4xl font-bold tracking-wider mb-2 text-white animate-glow" style={{
-                  textShadow: '0 0 30px rgba(100, 200, 255, 0.8), 0 0 60px rgba(100, 200, 255, 0.5)'
+                <h1 className="text-4xl font-bold tracking-wider mb-2 animate-float" style={{
+                  background: 'linear-gradient(135deg, #ff69b4, #ff1493, #ff69b4)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  textShadow: '0 0 30px rgba(255, 105, 180, 0.3)'
                 }}>
-                  <i className="fas fa-calendar-alt mr-3"></i>
+                  <i className="fas fa-calendar-alt mr-3" style={{color: '#ff69b4'}}></i>
                   {settings.systemTitle}
                 </h1>
-                <p className="text-gray-300 text-sm font-light tracking-wide">{settings.description}</p>
+                <p className="text-pink-600 text-sm font-light tracking-wide">{settings.description}</p>
               </div>
             </div>
 
@@ -525,10 +534,14 @@ const EnhancedNotionBooking = () => {
             {/* 予約完了画面 */}
             {showConfirmation && completedBooking && (
               <div className="space-y-6">
-                <div className="glassmorphism rounded-2xl p-8 shadow-2xl">
+                <div className="rounded-2xl p-8 shadow-2xl" style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 192, 203, 0.3)'
+                }}>
                   <div className="text-center">
                     <div className="mb-6">
-                      <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-xl">
+                      <div className="w-24 h-24 bg-gradient-to-br from-pink-400 to-pink-500 rounded-full flex items-center justify-center mx-auto shadow-xl">
                         <i className="fas fa-check text-white text-5xl"></i>
                       </div>
                     </div>
@@ -620,12 +633,16 @@ const EnhancedNotionBooking = () => {
             {!showTimeSlots && !showBookingForm && !showConfirmation && (
               <>
                 {/* 週選択 */}
-                <div className="glassmorphism rounded-2xl p-4 shadow-xl">
+                <div className="rounded-2xl p-4 shadow-xl" style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 192, 203, 0.3)'
+                }}>
                   <div className="flex justify-between items-center">
                     <button
                       onClick={() => handleWeekChange(weekOffset - 1)}
                       disabled={isInitialLoading || isWeekChanging}
-                      className="group px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:-translate-x-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                      className="group px-6 py-3 bg-gradient-to-r from-pink-400 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:-translate-x-1 disabled:opacity-50 disabled:cursor-not-allowed">
                       <i className="fas fa-chevron-left mr-2 group-hover:-translate-x-1 transition-transform"></i>
                       前週
                     </button>
@@ -640,7 +657,7 @@ const EnhancedNotionBooking = () => {
                     <button
                       onClick={() => handleWeekChange(weekOffset + 1)}
                       disabled={isInitialLoading || isWeekChanging}
-                      className="group px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:translate-x-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                      className="group px-6 py-3 bg-gradient-to-r from-pink-500 to-pink-400 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:translate-x-1 disabled:opacity-50 disabled:cursor-not-allowed">
                       翌週
                       <i className="fas fa-chevron-right ml-2 group-hover:translate-x-1 transition-transform"></i>
                     </button>
@@ -648,7 +665,11 @@ const EnhancedNotionBooking = () => {
                 </div>
 
                 {/* 凡例 */}
-                <div className="glassmorphism rounded-2xl p-4 shadow-lg">
+                <div className="rounded-2xl p-4 shadow-lg" style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 192, 203, 0.3)'
+                }}>
                   <div className="grid grid-cols-4 gap-3">
                     <div className="flex items-center space-x-2">
                       <span className="text-2xl">✅</span>
@@ -677,9 +698,13 @@ const EnhancedNotionBooking = () => {
                   </h2>
 
                   {(isInitialLoading || isWeekChanging) && (
-                    <div className="glassmorphism rounded-2xl p-8 text-center animate-pulse">
+                    <div className="rounded-2xl p-8 text-center animate-pulse" style={{
+                      background: 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(255, 192, 203, 0.3)'
+                    }}>
                       <div className="inline-block">
-                        <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <div className="w-16 h-16 border-4 border-pink-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                         <p className="text-gradient font-semibold">データを読み込んでいます...</p>
                       </div>
                     </div>

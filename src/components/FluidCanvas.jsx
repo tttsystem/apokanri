@@ -35,9 +35,9 @@ const FluidCanvas = () => {
         this.life = 1;
         this.decay = Math.random() * 0.01 + 0.005;
         this.color = {
-          h: Math.random() * 60 + 200, // Blue to purple range
-          s: 100,
-          l: 50 + Math.random() * 30
+          h: Math.random() * 60 + 320, // Pink to purple range
+          s: 70 + Math.random() * 30,
+          l: 70 + Math.random() * 20
         };
         this.trail = [];
         this.maxTrailLength = 20;
@@ -145,9 +145,9 @@ const FluidCanvas = () => {
             decay: Math.random() * 0.02 + 0.01,
             radius: Math.random() * 3 + 1,
             color: {
-              h: Math.random() * 60 + 200,
-              s: 100,
-              l: 60 + Math.random() * 20
+              h: Math.random() * 60 + 320, // Pink range
+              s: 80,
+              l: 75 + Math.random() * 15
             }
           });
         }
@@ -195,8 +195,8 @@ const FluidCanvas = () => {
 
     // Animation loop
     const animate = () => {
-      // Create trail effect
-      ctx.fillStyle = 'rgba(0, 0, 10, 0.05)';
+      // Create trail effect with lighter background
+      ctx.fillStyle = 'rgba(255, 250, 255, 0.08)';
       ctx.fillRect(0, 0, width, height);
 
       // Update mouse velocity
@@ -262,9 +262,9 @@ const FluidCanvas = () => {
           mouseRef.current.x, mouseRef.current.y, 0,
           mouseRef.current.x, mouseRef.current.y, 100
         );
-        glowGradient.addColorStop(0, 'rgba(100, 200, 255, 0.3)');
-        glowGradient.addColorStop(0.5, 'rgba(100, 150, 255, 0.1)');
-        glowGradient.addColorStop(1, 'rgba(100, 150, 255, 0)');
+        glowGradient.addColorStop(0, 'rgba(255, 182, 193, 0.4)');
+        glowGradient.addColorStop(0.5, 'rgba(255, 192, 203, 0.2)');
+        glowGradient.addColorStop(1, 'rgba(255, 182, 193, 0)');
 
         ctx.fillStyle = glowGradient;
         ctx.fillRect(mouseRef.current.x - 100, mouseRef.current.y - 100, 200, 200);
@@ -382,7 +382,7 @@ const FluidCanvas = () => {
         left: 0,
         width: '100%',
         height: '100%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #fda085 75%, #667eea 100%)',
+        background: 'linear-gradient(135deg, #ffc0cb 0%, #ffb6c1 20%, #ffc0e0 40%, #ffddff 60%, #ffe0f0 80%, #ffc0cb 100%)',
         backgroundSize: '400% 400%',
         animation: 'gradient 15s ease infinite',
         zIndex: 1,
