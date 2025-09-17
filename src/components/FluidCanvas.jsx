@@ -281,9 +281,12 @@ const FluidCanvas = () => {
     };
 
     const handleMouseDown = (e) => {
+      e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+
+      console.log('Mouse clicked at:', x, y); // Debug log
 
       mouseRef.current.isDown = true;
 
@@ -313,10 +316,13 @@ const FluidCanvas = () => {
     };
 
     const handleTouchStart = (e) => {
+      e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const touch = e.touches[0];
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
+
+      console.log('Touch started at:', x, y); // Debug log
 
       mouseRef.current.isDown = true;
       mouseRef.current.x = x;
@@ -379,7 +385,8 @@ const FluidCanvas = () => {
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #fda085 75%, #667eea 100%)',
         backgroundSize: '400% 400%',
         animation: 'gradient 15s ease infinite',
-        zIndex: 0,
+        zIndex: 1,
+        pointerEvents: 'auto',
       }}
     />
   );

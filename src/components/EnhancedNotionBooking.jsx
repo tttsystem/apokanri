@@ -496,8 +496,8 @@ const EnhancedNotionBooking = () => {
       <FluidCanvas />
 
       {/* Main Content */}
-      <div className="relative" style={{ zIndex: 1 }}>
-        <div className="relative max-w-lg mx-auto">
+      <div className="relative" style={{ zIndex: 10, pointerEvents: 'none' }}>
+        <div className="relative max-w-lg mx-auto" style={{ pointerEvents: 'auto' }}>
           {/* ヘッダー */}
           <div className="sticky top-0 z-50 glassmorphism-dark shadow-2xl">
             <div className="p-6" style={{
