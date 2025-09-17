@@ -1,10 +1,10 @@
-import ModernBookingSystem from './components/ModernBookingSystem';
+import EnhancedNotionBooking from './components/EnhancedNotionBooking';
 import './App.css';
 
 function App() {
   return (
     <div className="App">
-      <ModernBookingSystem />
+      <EnhancedNotionBooking />
     </div>
   );
 }
