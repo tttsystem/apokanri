@@ -357,6 +357,33 @@ const ModernBookingSystem = () => {
     const slotStart = new Date(`${dateString}T${time}:00+09:00`);
     const slotEnd = new Date(`${dateString}T${String(timeHour + 1).padStart(2, '0')}:00+09:00`);
 
+    // Check for face-to-face appointments and block 2 hours before and after
+    const hasBlockedTimeForInPerson = notionEvents.some(event => {
+      const eventStart = event.properties['予定日']?.date?.start;
+      const eventEnd = event.properties['予定日']?.date?.end;
+      const callMethod = event.properties['通話方法']?.select?.name;
+
+      if (!eventStart || callMethod !== '対面') return false;
+
+      const existingStart = new Date(eventStart);
+      let existingEnd;
+
+      if (eventEnd) {
+        existingEnd = new Date(eventEnd);
+      } else {
+        existingEnd = new Date(existingStart.getTime() + 60 * 60 * 1000);
+      }
+
+      // Block 2 hours before and after
+      const blockStart = new Date(existingStart.getTime() - 2 * 60 * 60 * 1000);
+      const blockEnd = new Date(existingEnd.getTime() + 2 * 60 * 60 * 1000);
+
+      return (blockStart < slotEnd && blockEnd > slotStart);
+    });
+
+    if (hasBlockedTimeForInPerson) return 'booked';
+
+    // Check for regular bookings
     const hasNotionEvent = notionEvents.some(event => {
       const eventStart = event.properties['予定日']?.date?.start;
       const eventEnd = event.properties['予定日']?.date?.end;
