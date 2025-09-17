@@ -309,6 +309,7 @@ const FluidCanvas = () => {
     };
 
     const handleTouchMove = (e) => {
+      e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const touch = e.touches[0];
       mouseRef.current.x = touch.clientX - rect.left;
@@ -351,9 +352,9 @@ const FluidCanvas = () => {
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('touchmove', handleTouchMove);
-    canvas.addEventListener('touchstart', handleTouchStart);
-    canvas.addEventListener('touchend', handleTouchEnd);
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
 
     // Start animation
     animate();
@@ -364,9 +365,9 @@ const FluidCanvas = () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mousedown', handleMouseDown);
       canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('touchmove', handleTouchMove);
-      canvas.removeEventListener('touchstart', handleTouchStart);
-      canvas.removeEventListener('touchend', handleTouchEnd);
+      canvas.removeEventListener('touchmove', handleTouchMove, { passive: false });
+      canvas.removeEventListener('touchstart', handleTouchStart, { passive: false });
+      canvas.removeEventListener('touchend', handleTouchEnd, { passive: false });
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -387,6 +388,10 @@ const FluidCanvas = () => {
         animation: 'gradient 15s ease infinite',
         zIndex: 1,
         pointerEvents: 'auto',
+        touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none'
       }}
     />
   );
