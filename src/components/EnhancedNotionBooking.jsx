@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import FluidCanvas from './FluidCanvas';
 
 const EnhancedNotionBooking = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -18,8 +19,6 @@ const EnhancedNotionBooking = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isWeekChanging, setIsWeekChanging] = useState(false);
 
-  const canvasRef = useRef(null);
-  const animationRef = useRef(null);
 
   const settings = {
     immediateButtonText: '今すぐ予約する',
@@ -37,118 +36,6 @@ const EnhancedNotionBooking = () => {
   ];
 
   const CALENDAR_DATABASE_ID = '1fa44ae2d2c780a5b27dc7aae5bae1aa';
-
-  // Cool fluid background effect
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    const ctx = canvas.getContext('2d');
-    const particles = [];
-    const mouse = { x: 0, y: 0 };
-
-    class Particle {
-      constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.vx = (Math.random() - 0.5) * 1;
-        this.vy = (Math.random() - 0.5) * 1;
-        this.radius = Math.random() * 150 + 100;
-        this.color = {
-          r: Math.random() * 0.3 + 0.5,
-          g: Math.random() * 0.3 + 0.2,
-          b: Math.random() * 0.4 + 0.6
-        };
-        this.alpha = Math.random() * 0.2 + 0.05;
-      }
-
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-
-        const dx = mouse.x - this.x;
-        const dy = mouse.y - this.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < 200) {
-          const force = (200 - distance) / 200;
-          this.vx -= (dx / distance) * force * 0.3;
-          this.vy -= (dy / distance) * force * 0.3;
-        }
-
-        if (this.x < -this.radius) this.x = canvas.width + this.radius;
-        if (this.x > canvas.width + this.radius) this.x = -this.radius;
-        if (this.y < -this.radius) this.y = canvas.height + this.radius;
-        if (this.y > canvas.height + this.radius) this.y = -this.radius;
-
-        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (speed > 2) {
-          this.vx = (this.vx / speed) * 2;
-          this.vy = (this.vy / speed) * 2;
-        }
-      }
-
-      draw(ctx) {
-        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
-        gradient.addColorStop(0, `rgba(${Math.floor(this.color.r * 255)}, ${Math.floor(this.color.g * 255)}, ${Math.floor(this.color.b * 255)}, ${this.alpha})`);
-        gradient.addColorStop(1, `rgba(${Math.floor(this.color.r * 255)}, ${Math.floor(this.color.g * 255)}, ${Math.floor(this.color.b * 255)}, 0)`);
-
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    for (let i = 0; i < 10; i++) {
-      particles.push(new Particle(Math.random() * canvas.width, Math.random() * canvas.height));
-    }
-
-    const animate = () => {
-      ctx.fillStyle = 'rgba(250, 240, 250, 0.02)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      particles.forEach(particle => {
-        particle.update();
-        particle.draw(ctx);
-      });
-
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    const handleMouseMove = (e) => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-    };
-
-    const handleTouch = (e) => {
-      if (e.touches.length > 0) {
-        mouse.x = e.touches[0].clientX;
-        mouse.y = e.touches[0].clientY;
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('touchmove', handleTouch);
-
-    animate();
-
-    return () => {
-      window.removeEventListener('resize', resizeCanvas);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('touchmove', handleTouch);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, []);
 
   const getCurrentWeekDates = () => {
     const today = new Date();
@@ -606,27 +493,24 @@ const EnhancedNotionBooking = () => {
   return (
     <div className="min-h-screen relative">
       {/* Fluid Background Canvas */}
-      <canvas
-        ref={canvasRef}
-        className="fixed inset-0 w-full h-full"
-        style={{
-          zIndex: 0,
-          background: 'linear-gradient(to bottom right, #f8f0fc, #f0f8ff, #fff0f8)'
-        }}
-      />
+      <FluidCanvas />
 
       {/* Main Content */}
       <div className="relative" style={{ zIndex: 1 }}>
         <div className="relative max-w-lg mx-auto">
           {/* ヘッダー */}
-          <div className="sticky top-0 z-50 glassmorphism shadow-2xl">
-            <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 p-6">
-              <div className="text-center text-white">
-                <h1 className="text-3xl font-bold tracking-tight mb-2 drop-shadow-lg">
+          <div className="sticky top-0 z-50 glassmorphism-dark shadow-2xl">
+            <div className="p-6" style={{
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1))'
+            }}>
+              <div className="text-center">
+                <h1 className="text-4xl font-bold tracking-wider mb-2 text-white animate-glow" style={{
+                  textShadow: '0 0 30px rgba(100, 200, 255, 0.8), 0 0 60px rgba(100, 200, 255, 0.5)'
+                }}>
                   <i className="fas fa-calendar-alt mr-3"></i>
                   {settings.systemTitle}
                 </h1>
-                <p className="text-white/90 text-sm font-light tracking-wide">{settings.description}</p>
+                <p className="text-gray-300 text-sm font-light tracking-wide">{settings.description}</p>
               </div>
             </div>
 
